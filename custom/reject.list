@@ -1,0 +1,2 @@
+# 自定义拒绝规则；每行一条，不写策略名称。
+# 示例：DOMAIN-SUFFIX,ads.example.com
