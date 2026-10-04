@@ -1,0 +1,71 @@
+/*
+ * 看剧AI (H5Shell) 去广告 —— Shadowrocket http-response 脚本
+ * target: com.h5.shell.aimovie.kanju
+ *
+ * 两条规则共用本脚本,靠 URL 形态自动分流:
+ *   A) HTML 文档  -> 在 </head> 前注入 adblock.js(四层防护,与 dylib 版同源)
+ *   B) JSON 响应  -> 就地清空 app_experience.placements(覆盖 bootstrap / users 等所有下发口)
+ *
+ * 说明:注入发生在 HTML 层,脚本随页面在 WKWebView 里执行,
+ *       因此能力与 dylib 注入完全等价(localStorage 锁定 / fetch 拦截 / DOM 清除 / CSS 兜底)。
+ */
+
+const ADBLOCK_SRC = "/*\n * 看剧AI (H5Shell) 去广告注入脚本\n * target: com.h5.shell.aimovie.kanju  v1.0.26(60)\n *\n * 四层防护,任意一层生效即可屏蔽广告:\n *   L1  localStorage 配置锁定  —— 锁死 app_experience 快照,服务器新配置永远写不进来\n *   L2  fetch / XHR 拦截        —— 剥离 /v1/runtime/bootstrap 响应里的 placements\n *   L3  DOM 节点清除            —— MutationObserver 移除已渲染的广告容器\n *   L4  CSS 兜底隐藏            —— 覆盖三处广告位的样式类\n *\n * 必须在 WKUserScriptInjectionTimeAtDocumentStart + forMainFrameOnly:NO 注入。\n */\n(function () {\n  'use strict';\n  if (window.__KanjuAdBlockInstalled) return;\n  window.__KanjuAdBlockInstalled = true;\n\n  /* ---------- 常量:与线上 bundle 完全一致 ---------- */\n  var KEY_BASE = 'movie-search:app-experience:v3';   // 主键前缀\n  var KEY_LEGACY = 'movie-search:app-experience:v2'; // 旧版键\n  var FAR_STAMP = 253402300799000;                   // 9999-12-31T23:59:59Z\n  var FAR_ISO = '9999-12-31T23:59:59.000Z';\n  var TTL_SEC = 86400;\n\n  /* 空配置快照:三处广告位全部清零\n   *   splash_screen  daily_impression_limit = 0  → R0() 首行 `<=0 → return false`,开屏永不展示\n   *   showcase_grid  items = []                  → 午夜剧场广告位无素材\n   *   player_info    auto_flip.enabled = false   → qf() 首行 `!enabled → return false`,信息页广告不翻转\n   *                  auto_flip.movie_daily_limit = 0 → 第二道短路\n   */\n  function buildSnapshot() {\n    return {\n      object: 'app.experience_snapshot',\n      version: 1,\n      generated_at: FAR_ISO,\n      cache_ttl_seconds: TTL_SEC,\n      placements: {\n        splash_screen: {\n          layout: 'banner',\n          items: [],\n          cooldown_minutes: 10080,\n          daily_impression_limit: 0\n        },\n        showcase_grid: { layout: 'grid', items: [] },\n        player_info: {\n          layout: 'grid',\n          items: [],\n          banner_items: [],\n          grid_items: [],\n          display_mode: 'grid',\n          presentation_mode: 'fixed_grid',\n          creative_daily_rotation_limit: 0,\n          daily_rotation_limit: 0,\n          auto_flip: {\n            enabled: false,\n            delay_seconds: 0,\n            dwell_seconds: 1,\n            global_cooldown_minutes: 0,\n            movie_cooldown_minutes: 0,\n            movie_daily_limit: 0,\n            per_open_limit: 0,\n            adult_default_ad_enabled: false,\n            default_ad_targeting: { enabled: false }\n          }\n        }\n      }\n    };\n  }\n\n  /* ---------- L1:配置锁定 ---------- */\n  var SNAPSHOT = buildSnapshot();\n\n  function cachePayload() {\n    return JSON.stringify({\n      stored_at: FAR_STAMP,\n      refresh_after: FAR_STAMP + TTL_SEC * 1000,\n      snapshot: SNAPSHOT\n    });\n  }\n\n  function scopedKey(host) {\n    var h = String(host || 'local').trim().toLowerCase() || 'local';\n    return KEY_BASE + ':' + encodeURIComponent(h);\n  }\n\n  // 除了当前 host,把已观测到的全部轮换域名一并预置,规避切域名后失效\n  var KNOWN_HOSTS = [\n    'kanju.ai', 'kanju1.com', 'kanju13.com', 'kanju15.com', 'kanju16.com',\n    'kanju17.com', 'kanju18.com', 'kanju19.com', 'kanju20.com',\n    'souju.ai', 'souju1.com', 'souju2.com', 'souju3.com', 'souju5.com',\n    'souju7.com', 'baipiao.ai', 'main.kanju13.com', 'a.weilai555.com',\n    'l7.ksw399.com', 'local'\n  ];\n\n  function lockConfig() {\n    var payload = cachePayload();\n    var keys = [KEY_LEGACY];\n    try {\n      if (location && location.hostname) keys.push(scopedKey(location.hostname));\n    } catch (e) { /* ignore */ }\n    for (var i = 0; i < KNOWN_HOSTS.length; i++) keys.push(scopedKey(KNOWN_HOSTS[i]));\n    for (var k = 0; k < keys.length; k++) {\n      try { localStorage.setItem(keys[k], payload); } catch (e) { /* quota / 隐私模式 */ }\n    }\n  }\n\n  function isAdConfigKey(key) {\n    return typeof key === 'string' &&\n      (key === KEY_BASE || key === KEY_LEGACY || key.indexOf(KEY_BASE + ':') === 0);\n  }\n\n  // 服务器若试图下发新快照,co(te,o) 会因 9999 时间戳判定\"本地更新\"而拒绝写入。\n  // 这里再兜一层:针对该键的外来写入直接丢弃,但放行本脚本自己的锁定 payload(幂等补写)。\n  function guardStorage() {\n    try {\n      var proto = Object.getPrototypeOf(localStorage);\n      var desc = Object.getOwnPropertyDescriptor(proto, 'setItem') ||\n                 Object.getOwnPropertyDescriptor(localStorage, 'setItem');\n      if (!desc || typeof desc.value !== 'function') return;\n      var origSet = desc.value;\n      var guarded = function (key, value) {\n        if (isAdConfigKey(key)) {\n          // 只允许携带 9999 锁定标记的写入通过\n          if (typeof value !== 'string' || value.indexOf(FAR_ISO) === -1) return undefined;\n        }\n        return origSet.call(this, key, value);\n      };\n      Object.defineProperty(localStorage, 'setItem', {\n        configurable: true, writable: true, value: guarded\n      });\n    } catch (e) { /* 部分 WebKit 版本不可覆盖,依赖 L1 主逻辑即可 */ }\n  }\n\n  /* ---------- L2:网络响应拦截 ---------- */\n  function stripPlacements(obj) {\n    if (!obj || typeof obj !== 'object') return obj;\n    var snap = obj.app_experience;\n    if (snap && typeof snap === 'object' && snap.placements) {\n      snap.placements = SNAPSHOT.placements;\n    }\n    return obj;\n  }\n\n  function isBootstrap(url) {\n    return typeof url === 'string' && url.indexOf('/v1/runtime/bootstrap') !== -1;\n  }\n\n  function installNetworkHooks() {\n    // fetch\n    try {\n      var origFetch = window.fetch;\n      if (typeof origFetch === 'function') {\n        window.fetch = function (input, init) {\n          var url = '';\n          try {\n            url = typeof input === 'string' ? input : (input && input.url) || '';\n          } catch (e) { /* ignore */ }\n          var p = origFetch.apply(this, arguments);\n          if (!isBootstrap(url)) return p;\n          return p.then(function (res) {\n            try {\n              return res.clone().json().then(function (data) {\n                var body = JSON.stringify(stripPlacements(data));\n                var headers = new Headers(res.headers);\n                headers.delete('content-length');\n                return new Response(body, {\n                  status: res.status,\n                  statusText: res.statusText,\n                  headers: headers\n                });\n              }).catch(function () { return res; });\n            } catch (e) { return res; }\n          });\n        };\n      }\n    } catch (e) { /* ignore */ }\n\n    // XMLHttpRequest\n    try {\n      var origOpen = XMLHttpRequest.prototype.open;\n      var origSend = XMLHttpRequest.prototype.send;\n      XMLHttpRequest.prototype.open = function (method, url) {\n        this.__kabBootstrap = isBootstrap(url);\n        return origOpen.apply(this, arguments);\n      };\n      XMLHttpRequest.prototype.send = function () {\n        var xhr = this;\n        if (xhr.__kabBootstrap) {\n          var origResponseText = Object.getOwnPropertyDescriptor(\n            XMLHttpRequest.prototype, 'responseText');\n          if (origResponseText && origResponseText.get) {\n            xhr.addEventListener('readystatechange', function () {\n              if (xhr.readyState !== 4) return;\n              if (xhr.__kabPatched) return;\n              xhr.__kabPatched = true;\n              try {\n                var data = JSON.parse(origResponseText.get.call(xhr));\n                var body = JSON.stringify(stripPlacements(data));\n                Object.defineProperty(xhr, 'responseText', { configurable: true, get: function () { return body; } });\n                Object.defineProperty(xhr, 'response', {\n                  configurable: true,\n                  get: function () { return xhr.responseType === 'json' ? JSON.parse(body) : body; }\n                });\n              } catch (e) { /* ignore */ }\n            });\n          }\n        }\n        return origSend.apply(this, arguments);\n      };\n    } catch (e) { /* ignore */ }\n  }\n\n  /* ---------- L3 + L4:DOM 清除与样式隐藏 ---------- */\n  var KILL_SELECTORS = [\n    '.app-startup-ad',\n    '.movie-player-info-ad-banner-shell',\n    '.movie-player-info-ad-grid'\n  ];\n\n  function injectStyle() {\n    try {\n      if (document.getElementById('kab-style')) return;\n      var s = document.createElement('style');\n      s.id = 'kab-style';\n      s.textContent =\n        KILL_SELECTORS.join(',') + '{display:none !important;visibility:hidden !important;pointer-events:none !important;}' +\n        '.app-startup-ad-label,.movie-player-info-ad-label{display:none !important;}';\n      (document.head || document.documentElement).appendChild(s);\n    } catch (e) { /* ignore */ }\n  }\n\n  function purgeAds() {\n    for (var i = 0; i < KILL_SELECTORS.length; i++) {\n      var nodes;\n      try { nodes = document.querySelectorAll(KILL_SELECTORS[i]); } catch (e) { continue; }\n      for (var j = nodes.length - 1; j >= 0; j--) {\n        var n = nodes[j];\n        if (n && n.parentNode) {\n          n.parentNode.removeChild(n);\n          try { document.body.style.overflow = ''; } catch (e) { /* ignore */ }\n        }\n      }\n    }\n    // 广告若触发 body overflow:hidden 锁滚动,这里解锁,避免清掉广告后页面卡死\n    try {\n      if (document.body && document.body.style.overflow === 'hidden') {\n        var anyAd = document.querySelector('.app-startup-ad');\n        if (!anyAd) document.body.style.overflow = '';\n      }\n    } catch (e) { /* ignore */ }\n  }\n\n  function installDomWatcher() {\n    injectStyle();\n    var run = function () { try { purgeAds(); } catch (e) { /* ignore */ } };\n    run();\n    if (document.readyState === 'loading') {\n      document.addEventListener('DOMContentLoaded', run, { once: true });\n    }\n    try {\n      if (window.MutationObserver) {\n        var scheduled = false;\n        new MutationObserver(function () {\n          if (scheduled) return;\n          scheduled = true;\n          setTimeout(function () { scheduled = false; run(); }, 50);\n        }).observe(document.documentElement || document, { childList: true, subtree: true });\n      }\n    } catch (e) { /* ignore */ }\n  }\n\n  /* ---------- 启动 ---------- */\n  lockConfig();\n  guardStorage();\n  installNetworkHooks();\n  installDomWatcher();\n\n  // 配置模块可能在本脚本之后再次落盘,做几次延迟补偿\n  var retries = [0, 200, 800, 2000];\n  for (var r = 0; r < retries.length; r++) {\n    (function (delay) {\n      setTimeout(function () { lockConfig(); purgeAds(); }, delay);\n    })(retries[r]);\n  }\n})();\n";
+const EMPTY_PLACEMENTS = {"splash_screen": {"layout": "banner", "items": [], "cooldown_minutes": 10080, "daily_impression_limit": 0}, "showcase_grid": {"layout": "grid", "items": []}, "player_info": {"layout": "grid", "items": [], "banner_items": [], "grid_items": [], "display_mode": "grid", "presentation_mode": "fixed_grid", "creative_daily_rotation_limit": 0, "daily_rotation_limit": 0, "auto_flip": {"enabled": false, "delay_seconds": 0, "dwell_seconds": 1, "global_cooldown_minutes": 0, "movie_cooldown_minutes": 0, "movie_daily_limit": 0, "per_open_limit": 0, "adult_default_ad_enabled": false, "default_ad_targeting": {"enabled": false}}}};
+
+(function () {
+    var url = ($request && $request.url) || "";
+    var body = $response && $response.body;
+
+    if (typeof body !== "string" || body.length === 0) {
+        return $done({});
+    }
+
+    var lower = body.slice(0, 4000).toLowerCase();
+    var isHtml = lower.indexOf("<!doctype html") !== -1 || lower.indexOf("<html") !== -1;
+
+    if (isHtml) {
+        if (body.indexOf("__KanjuAdBlockInstalled") !== -1) return $done({});   // 已注入,幂等
+        var tag = "<script>" + ADBLOCK_SRC + "<\/script>";
+        if (body.indexOf("</head>") !== -1) {
+            body = body.replace("</head>", tag + "</head>");
+        } else if (body.indexOf("<body") !== -1) {
+            body = body.replace("<body", tag + "<body");
+        } else {
+            body = tag + body;
+        }
+        return $done({ body: body });
+    }
+
+    // JSON 分支:任何携带 app_experience 的响应都就地净化
+    if (body.indexOf("app_experience") !== -1) {
+        try {
+            var obj = JSON.parse(body);
+            var snap = obj && obj.app_experience;
+            if (snap && snap.placements) {
+                snap.placements = EMPTY_PLACEMENTS;
+                return $done({ body: JSON.stringify(obj) });
+            }
+            // 嵌套形态(如 user 对象内的 app_experience)
+            var seen = false;
+            var walk = function (node, depth) {
+                if (!node || typeof node !== "object" || depth > 6) return;
+                if (node.app_experience && node.app_experience.placements) {
+                    node.app_experience.placements = EMPTY_PLACEMENTS;
+                    seen = true;
+                }
+                for (var k in node) {
+                    if (!Object.prototype.hasOwnProperty.call(node, k)) continue;
+                    var v = node[k];
+                    if (v && typeof v === "object") walk(v, depth + 1);
+                }
+            };
+            walk(obj, 0);
+            if (seen) return $done({ body: JSON.stringify(obj) });
+        } catch (e) {
+            // 非合法 JSON,原样放行
+        }
+    }
+
+    $done({});
+})();
