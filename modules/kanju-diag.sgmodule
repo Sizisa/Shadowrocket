@@ -1,0 +1,11 @@
+#!name = 看剧AI 定向诊断
+#!desc = 蓝色标记只证明 HTML 已被小火箭改写；不依赖页面 JS。测试时停用其他看剧模块，测完停用本模块。
+#!author = Sizisa
+#!system = ios
+
+[Script]
+kanju.diag.html = type=http-response,pattern=^https?:\/\/([a-z0-9-]+\.)*(kanju[0-9]*|souju[0-9]*|baipiao)\.(com|ai)(:\d+)?(\/(index\.html|player(/[^?#]*)?|midnight-theater)?)?(\?[^#]*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/Sizisa/Shadowrocket/main/scripts/kanju-diag.js?v=20261004-html1
+kanju.diag.api = type=http-response,pattern=^https?:\/\/([a-z0-9-]+\.)*(kanju[0-9]*|souju[0-9]*|baipiao)\.(com|ai)(:\d+)?\/v1\/,requires-body=1,script-path=https://raw.githubusercontent.com/Sizisa/Shadowrocket/main/scripts/kanju-diag.js?v=20261004-html1
+
+[MITM]
+hostname = %APPEND% kanju1.com, kanju2.com, kanju3.com, kanju4.com, kanju5.com, kanju6.com, kanju7.com, kanju8.com, kanju9.com, kanju10.com, kanju11.com, kanju12.com, kanju13.com, kanju14.com, kanju15.com, kanju16.com, kanju17.com, kanju18.com, kanju19.com, kanju20.com, souju1.com, souju2.com, souju3.com, souju4.com, souju5.com, souju6.com, souju7.com, kanju.com, souju.com, baipiao.com, kanju1.ai, kanju2.ai, kanju3.ai, kanju4.ai, kanju5.ai, kanju6.ai, kanju7.ai, kanju8.ai, kanju9.ai, kanju10.ai, kanju11.ai, kanju12.ai, kanju13.ai, kanju14.ai, kanju15.ai, kanju16.ai, kanju17.ai, kanju18.ai, kanju19.ai, kanju20.ai, souju1.ai, souju2.ai, souju3.ai, souju4.ai, souju5.ai, souju6.ai, souju7.ai, kanju.ai, souju.ai, baipiao.ai, *.kanju1.com, *.kanju2.com, *.kanju3.com, *.kanju4.com, *.kanju5.com, *.kanju6.com, *.kanju7.com, *.kanju8.com, *.kanju9.com, *.kanju10.com, *.kanju11.com, *.kanju12.com, *.kanju13.com, *.kanju14.com, *.kanju15.com, *.kanju16.com, *.kanju17.com, *.kanju18.com, *.kanju19.com, *.kanju20.com, *.souju1.com, *.souju2.com, *.souju3.com, *.souju4.com, *.souju5.com, *.souju6.com, *.souju7.com, *.kanju.com, *.souju.com, *.baipiao.com, *.kanju1.ai, *.kanju2.ai, *.kanju3.ai, *.kanju4.ai, *.kanju5.ai, *.kanju6.ai, *.kanju7.ai, *.kanju8.ai, *.kanju9.ai, *.kanju10.ai, *.kanju11.ai, *.kanju12.ai, *.kanju13.ai, *.kanju14.ai, *.kanju15.ai, *.kanju16.ai, *.kanju17.ai, *.kanju18.ai, *.kanju19.ai, *.kanju20.ai, *.souju1.ai, *.souju2.ai, *.souju3.ai, *.souju4.ai, *.souju5.ai, *.souju6.ai, *.souju7.ai, *.kanju.ai, *.souju.ai, *.baipiao.ai
