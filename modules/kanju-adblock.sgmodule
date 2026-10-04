@@ -1,5 +1,5 @@
 #!name = 看剧AI 去广告
-#!desc = MITM 页面注入及广告 JSON 净化；支持 kanju1.ai。需启用 HTTPS 解密并信任证书。
+#!desc = MITM 页面注入及广告 JSON 净化；支持 kanju1.ai 及 ai.kanju25.com。需启用 HTTPS 解密并信任证书。
 #!author = Sizisa
 #!homepage = https://kanju1.ai
 #!system = ios
@@ -10,10 +10,10 @@
 [Script]
 
 # 首页及 index.html；支持根域及子域。
-kanju.html = type=http-response,pattern=^https?:\/\/([a-z0-9-]+\.)*(kanju[0-9]*|souju[0-9]*|baipiao)\.(com|ai)(\/(index\.html)?)?(\?.*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/Sizisa/Shadowrocket/main/scripts/kanju-adblock.js?v=20261004-csp1
+kanju.html = type=http-response,pattern=^https?:\/\/([a-z0-9-]+\.)*(kanju[0-9]*|souju[0-9]*|baipiao)\.(com|ai)(:443)?(\/(index\.html)?)?(\?.*)?$,requires-body=1,script-path=https://raw.githubusercontent.com/Sizisa/Shadowrocket/main/scripts/kanju-adblock.js?v=20261004-csp1
 
 # /v1/ API；修复原表达式中多余的斜杠。
-kanju.json = type=http-response,pattern=^https?:\/\/([a-z0-9-]+\.)*(kanju[0-9]*|souju[0-9]*|baipiao)\.(com|ai)\/v1\/,requires-body=1,script-path=https://raw.githubusercontent.com/Sizisa/Shadowrocket/main/scripts/kanju-adblock.js?v=20261004-csp1
+kanju.json = type=http-response,pattern=^https?:\/\/([a-z0-9-]+\.)*(kanju[0-9]*|souju[0-9]*|baipiao)\.(com|ai)(:443)?\/v1\/,requires-body=1,script-path=https://raw.githubusercontent.com/Sizisa/Shadowrocket/main/scripts/kanju-adblock.js?v=20261004-csp1
 
 [URL Rewrite]
 
@@ -34,4 +34,4 @@ DOMAIN-SUFFIX,bihe161.com,REJECT
 [MITM]
 
 # 覆盖已知编号域名的 .com / .ai 及其子域；出现新的编号时需追加。
-hostname = %APPEND% kanju1.com, kanju2.com, kanju3.com, kanju4.com, kanju5.com, kanju6.com, kanju7.com, kanju8.com, kanju9.com, kanju10.com, kanju11.com, kanju12.com, kanju13.com, kanju14.com, kanju15.com, kanju16.com, kanju17.com, kanju18.com, kanju19.com, kanju20.com, souju1.com, souju2.com, souju3.com, souju4.com, souju5.com, souju6.com, souju7.com, kanju.com, souju.com, baipiao.com, kanju1.ai, kanju2.ai, kanju3.ai, kanju4.ai, kanju5.ai, kanju6.ai, kanju7.ai, kanju8.ai, kanju9.ai, kanju10.ai, kanju11.ai, kanju12.ai, kanju13.ai, kanju14.ai, kanju15.ai, kanju16.ai, kanju17.ai, kanju18.ai, kanju19.ai, kanju20.ai, souju1.ai, souju2.ai, souju3.ai, souju4.ai, souju5.ai, souju6.ai, souju7.ai, kanju.ai, souju.ai, baipiao.ai, *.kanju1.com, *.kanju2.com, *.kanju3.com, *.kanju4.com, *.kanju5.com, *.kanju6.com, *.kanju7.com, *.kanju8.com, *.kanju9.com, *.kanju10.com, *.kanju11.com, *.kanju12.com, *.kanju13.com, *.kanju14.com, *.kanju15.com, *.kanju16.com, *.kanju17.com, *.kanju18.com, *.kanju19.com, *.kanju20.com, *.souju1.com, *.souju2.com, *.souju3.com, *.souju4.com, *.souju5.com, *.souju6.com, *.souju7.com, *.kanju.com, *.souju.com, *.baipiao.com, *.kanju1.ai, *.kanju2.ai, *.kanju3.ai, *.kanju4.ai, *.kanju5.ai, *.kanju6.ai, *.kanju7.ai, *.kanju8.ai, *.kanju9.ai, *.kanju10.ai, *.kanju11.ai, *.kanju12.ai, *.kanju13.ai, *.kanju14.ai, *.kanju15.ai, *.kanju16.ai, *.kanju17.ai, *.kanju18.ai, *.kanju19.ai, *.kanju20.ai, *.souju1.ai, *.souju2.ai, *.souju3.ai, *.souju4.ai, *.souju5.ai, *.souju6.ai, *.souju7.ai, *.kanju.ai, *.souju.ai, *.baipiao.ai
+hostname = %APPEND% kanju1.com, kanju2.com, kanju3.com, kanju4.com, kanju5.com, kanju6.com, kanju7.com, kanju8.com, kanju9.com, kanju10.com, kanju11.com, kanju12.com, kanju13.com, kanju14.com, kanju15.com, kanju16.com, kanju17.com, kanju18.com, kanju19.com, kanju20.com, souju1.com, souju2.com, souju3.com, souju4.com, souju5.com, souju6.com, souju7.com, kanju.com, souju.com, baipiao.com, kanju1.ai, kanju2.ai, kanju3.ai, kanju4.ai, kanju5.ai, kanju6.ai, kanju7.ai, kanju8.ai, kanju9.ai, kanju10.ai, kanju11.ai, kanju12.ai, kanju13.ai, kanju14.ai, kanju15.ai, kanju16.ai, kanju17.ai, kanju18.ai, kanju19.ai, kanju20.ai, souju1.ai, souju2.ai, souju3.ai, souju4.ai, souju5.ai, souju6.ai, souju7.ai, kanju.ai, souju.ai, baipiao.ai, *.kanju1.com, *.kanju2.com, *.kanju3.com, *.kanju4.com, *.kanju5.com, *.kanju6.com, *.kanju7.com, *.kanju8.com, *.kanju9.com, *.kanju10.com, *.kanju11.com, *.kanju12.com, *.kanju13.com, *.kanju14.com, *.kanju15.com, *.kanju16.com, *.kanju17.com, *.kanju18.com, *.kanju19.com, *.kanju20.com, *.souju1.com, *.souju2.com, *.souju3.com, *.souju4.com, *.souju5.com, *.souju6.com, *.souju7.com, *.kanju.com, *.souju.com, *.baipiao.com, *.kanju1.ai, *.kanju2.ai, *.kanju3.ai, *.kanju4.ai, *.kanju5.ai, *.kanju6.ai, *.kanju7.ai, *.kanju8.ai, *.kanju9.ai, *.kanju10.ai, *.kanju11.ai, *.kanju12.ai, *.kanju13.ai, *.kanju14.ai, *.kanju15.ai, *.kanju16.ai, *.kanju17.ai, *.kanju18.ai, *.kanju19.ai, *.kanju20.ai, *.souju1.ai, *.souju2.ai, *.souju3.ai, *.souju4.ai, *.souju5.ai, *.souju6.ai, *.souju7.ai, *.kanju.ai, *.souju.ai, *.baipiao.ai, ai.kanju25.com
